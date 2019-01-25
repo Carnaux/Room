@@ -1,0 +1,37 @@
+<html>
+  <head>
+    <title>My first three.js app</title>
+    <style>
+      body {
+        margin: 0;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="overlay">
+      Add a model:<input
+        type="file"
+        onchange="onChooseFile(event, onModelLoad.bind(this))"
+      />
+      Add a material:<input
+        type="file"
+        onchange="onChooseFile(event, onMaterialLoad.bind(this))"
+      />Load: <button id="startBT" onclick="loadOBJMTL()">Load</button>
+
+      Add the Paths:<input
+        type="file"
+        onchange="onChooseFile(event, onPathLoad.bind(this))"
+      />
+    </div>
+
+    <script src="three.js"></script>
+    <script src="Orbit.js"></script>
+    <script src="OBJLoader.js"></script>
+    <script src="MTLLoader.js"></script>
+    <script src="j1.js"></script>
+  </body>
+</html>
