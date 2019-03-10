@@ -1,22 +1,31 @@
-
 /*------------------------------------------------ */
-let objects = [];
 
-let testeArr = [];
+let interestDatabase = ["food", "books"];
+
+let peopleArr = [];
+
+let AOIs = [];
 
 let loadedModels = [];
 
 let loadedMaterials = [];
 
-let verticesConnection = [];
+let paths = [];
+let objects = [];
 
-let mouse = new THREE.Vector2();
+THREE.Pathfinding = threePathfinding.Pathfinding;
 
-let pathMeshPoints = [];
-let createPath = false;
+const pathfinder = new THREE.Pathfinding();
+
+const mouse = new THREE.Vector2();
+
+let player, level;
+
+let playerNavMeshGroup, calculatedPath;
+
 let calculatePath = false;
 
-let navMesh;
+const pathfollower = new PathFollower();
 
 let scene = new THREE.Scene();
 let camera = new THREE.PerspectiveCamera(
@@ -44,16 +53,16 @@ let controls = new THREE.OrbitControls(camera, renderer.domElement);
 
 document.addEventListener("mousedown", onDocumentMouseDown, false);
 
-var geometry = new THREE.BoxGeometry(0.09, 0.5, 0.09);
-var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-var cube = new THREE.Mesh(geometry, material);
-cube.position.set(-1, 0.3, -2);
-scene.add(cube);
+
+
+objects.push(player);
+
+
 
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
-  
+  pathfollower.update();
   renderer.render(scene, camera);
 }
 
@@ -70,42 +79,22 @@ function onDocumentMouseDown(event) {
   let raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(mouse, camera);
 
-  //var intersects = raycaster.intersectObjects(objects);
 
   if (calculatePath) {
-    const intersects = raycaster.intersectObject(navMesh);
+
+    let intersects = [];
+    navMesh.raycast(raycaster, intersects);
+
     if (intersects.length > 0) {
+      var vec = new THREE.Vector3();
+      vec.copy(intersects[0].point);
 
-      let p = new THREE.Vector3();
-      p.copy(intersects[0].point);
-
-      let v = new THREE.Vector3();
-      v.copy(p).sub(cube.position).normalize();
+      // Calculate a path to the target and store it
       
-     
-    
-      
-      var geometry = new THREE.Geometry();
-      geometry.vertices.push(cube.position, p);
 
       
-      var material = new THREE.LineBasicMaterial({
-        color: "rgb(0, 255, 0)"
-      });
-      var line = new THREE.Line(geometry, material);
-      
-      scene.add(line);
 
-      var dotGeometry = new THREE.Geometry();
-      dotGeometry.vertices.push(p);
-      var dotMaterial = new THREE.PointsMaterial({
-        size: 5,
-        sizeAttenuation: false
-      });
-      var dot = new THREE.Points(dotGeometry, dotMaterial);
-      scene.add(dot);
-
-      calculatePathPoints(p, cube.position);
+      pathfollower.preview(objects, paths);
     }
   }
 }
@@ -177,22 +166,24 @@ function onPathLoad(event) {
   let nav = objLoader.parse(pathData);
 
   var geometry = new THREE.Geometry().fromBufferGeometry(  nav.children[0].geometry);
+  
 
   let obj = new THREE.Mesh(
     geometry,
     nav.children[0].material
   );
-  
   obj.material.wireframe = true;
-  
+  obj.position.set(0,0,0);
   navMesh = obj;
-  
   scene.add(obj);
 
-  testeArr.push(obj);
+  console.time('createZone()');
+	var zoneNodes = THREE.Pathfinding.createZone(geometry);
+	console.timeEnd('createZone()');
+	pathfinder.setZoneData('level', zoneNodes);
 
-  calculateVerticesConnections(obj.geometry);
-
+  createPeople();
+  decideWhatToDo(peopleArr[0]);
   calculatePath = true;
 }
 
@@ -210,268 +201,101 @@ function loadOBJMTL() {
   }
 }
 
-function calculateVerticesConnections(geometry){
+function createPeople(pos){
+  var geometry = new THREE.SphereGeometry( 0.25, 32, 32 );
+  var material = new THREE.MeshBasicMaterial( {} );
+  let personMesh = new THREE.Mesh( geometry, material );
+  let personPosition = new THREE.Vector3();
+  personPosition.copy(pos);
 
-  let triangles = geometry.faces;
-
-  for(let i = 0; i < triangles.length; i++){
-    for(let j = 0; j < 3; j++){
-      if(j == 0){
-        let a = new THREE.Vector3();
-        a.copy(navMesh.geometry.vertices[ triangles[i].a]);
-        let connections = calculateVerticesAUX(triangles, a);
-        
-        let verticeConnect = {
-          vertice: a,
-          connections: connections
-        }
-        verticesConnection.push(verticeConnect);
-
-      }else if(j == 1){
-        let b = new THREE.Vector3();
-        b.copy(navMesh.geometry.vertices[ triangles[i].b]);
-        let connections = calculateVerticesAUX(triangles, b);
-        
-        let verticeConnect = {
-          vertice: b,
-          connections: connections
-        }
-        verticesConnection.push(verticeConnect);
-
-      }else if(j == 2){
-        let c = new THREE.Vector3();
-        c.copy(navMesh.geometry.vertices[ triangles[i].c]);
-        let connections = calculateVerticesAUX(triangles, c);
-        
-        let verticeConnect = {
-          vertice: c,
-          connections: connections
-        }
-        verticesConnection.push(verticeConnect);
-
-      }
-    }
+  let personInterests = {};
+  for(let i = 0; i < interestDatabase.length; i++){
+    personInterests[interestDatabase[i]] = Math.floor(Math.random() * 11) + 1 ;
   }
 
-  for(let i = 0; i < verticesConnection.length; i++){
-    for(let j = 0; j < verticesConnection.length; j++){
-      if(i != j && verticesConnection[i].vertice.equals(verticesConnection[j].vertice)){
-        verticesConnection.splice(j, 1);
-      } 
-    }
+  let person = {
+    body: personMesh,
+    interests: personInterests,
+    position: personPosition
   }
-
   
+  scene.add(personMesh);
+  peopleArr.push(person);
+  console.log(person)
+}
+
+function createAOI(interest, position){
+  var geometry = new THREE.BoxGeometry( 0.5, 0.5, 0.5 );
+  var material = new THREE.MeshBasicMaterial( {} );
+  let buildingMesh = new THREE.Mesh( geometry, material );
+
+  buildingMesh.position.copy(position);
+
+  let areaOfInterest = {
+    mesh: buildingMesh,
+    interest: interest,
+    position: position
+  }
+
+  AOIs.push(areaOfInterest);
+
+  scene.add(buildingMesh);
+}
+
+function decideWhatToDo(person){
+  var keys = Object.keys(person.interests);
+  keys.sort(function(a,b){
+    return person.interests[b] - person.interests[a];
+  });
+  let currentInterest = key[0];
+
+  closestAOI(currentInterest);
+}
+
+function closestAOI(name){
+  let candidatePlaces = [];
+
+  for(let i = 0; i < AOIs.length; i++){
+    if(AOIs[i].interest == name){
+      candidatePlaces.push(AOIs[i]);
+    }
+  }
+
 
 }
 
-function calculateVerticesAUX(triangles, v){
-  let connected = [];
-  for(let i = 0; i < triangles.length; i++){
-      if(v.equals(navMesh.geometry.vertices[ triangles[i].a])){
-
-        connected.push(navMesh.geometry.vertices[ triangles[i].b]);
-        connected.push(navMesh.geometry.vertices[ triangles[i].c]);
-
-      }else if(v.equals(navMesh.geometry.vertices[ triangles[i].b])){
-
-        connected.push(navMesh.geometry.vertices[ triangles[i].a]);
-        connected.push(navMesh.geometry.vertices[ triangles[i].c]);
-
-      }else if(v.equals(navMesh.geometry.vertices[ triangles[i].c])){
-
-        connected.push(navMesh.geometry.vertices[ triangles[i].a]);
-        connected.push(navMesh.geometry.vertices[ triangles[i].b]);
-
-      }
-  }
-
-  for(let i = 0; i < connected.length; i++){
-      for(let j = 0; j < connected.length; j++){
-        if(i != j && connected[i].equals(connected[j])){
-          connected.splice(j, 1);
-        } 
-      }
-    }
-
-  return connected;
-}
-
-function calculatePathPoints(finalPoint, initialPoint){
-
-  let pathVertices = [];
-
-  let initialTriangle = [];
-  let finalTriangle = [];
-
-  let triangles = navMesh.geometry.faces;
-
-  for(let i = 0; i < triangles.length; i++){
-    let a = new THREE.Vector3();
-    a.copy(navMesh.geometry.vertices[ triangles[i].a]);
-    let b = new THREE.Vector3();
-    b.copy(navMesh.geometry.vertices[ triangles[i].b]);
-    let c = new THREE.Vector3();
-    c.copy(navMesh.geometry.vertices[ triangles[i].c]);
-    let isOrNot = PointInTriangle(initialPoint, a, b, c);
-    if(isOrNot){
-      initialTriangle[0] = a;
-      initialTriangle[1] = b;
-      initialTriangle[2] = c;
-    }
-    let isOrNot2 = PointInTriangle(finalPoint, a, b, c);
-    if(isOrNot2){
-      finalTriangle[0] = a;
-      finalTriangle[1] = b;
-      finalTriangle[2] = c;
-    }
-  }
-
-  
-
-  let pathPoint = calculateF(initialTriangle, initialPoint, finalPoint);
-  pathVertices.push(pathPoint);
-
-  for(let i = 0; i < pathVertices.length; i++){
-    let tempArr = [];
-    for(let j = 0; j < verticesConnection.length; j++){
-      if(pathVertices[i].v.equals(verticesConnection[j].vertice)){
-        tempArr = verticesConnection[j].connections;
-      }
-    }
- 
-  
-    let pathPoint = calculateF(tempArr, pathVertices[i].v, finalPoint);
-
-    
-    var dotGeometry = new THREE.Geometry();
-      dotGeometry.vertices.push( pathPoint.v);
-      var dotMaterial = new THREE.PointsMaterial({
-        color: "rgb(255,0,0)",
-        size: 5,
-        sizeAttenuation: false
-      });
-      var dot = new THREE.Points(dotGeometry, dotMaterial);
-      scene.add(dot);
-
-    if(pathPoint.v.equals(finalTriangle[0]) || pathPoint.v.equals(finalTriangle[1]) || pathPoint.v.equals(finalTriangle[2])){
-      pathVertices.push(pathPoint);
-      i = pathVertices.length;
-    }else{
-      pathVertices.push(pathPoint);
-    }
-  }
-
-  //console.log("pathVertices",pathVertices);
-  
-  // for(let i = 0; i < pathVertices.length; i++){
-  //   let midpoints = [];
-  //   for()
-
-
-  // }
- 
-
-
-
-
-
-
-
-
-
-
-  // for(let i = 0; i < navMesh.geometry.vertices.length; i++){
-  //     let v = {
-  //       vertice: navMesh.geometry.vertices[i],
-  //       d: initialPoint.distanceTo(navMesh.geometry.vertices[i]),
-  //     };
-  //     tempDistances.push(v);
-
-  // }
-
-  // tempDistances.sort(compare);
-  
-  // for(let i = 0; i < tempDistances.length; i++){
-  //   for(let j = 0; j < tempDistances.length; j++){
-  //     if(i != j && tempDistances[i].d == tempDistances[j].d){
-  //       tempDistances.splice(j, 1);
-  //     } 
-  //   }
-  //   geoVertices.push(tempDistances[i].vertice);
-  // }
-
-  
-
-  // let tempPoints = [];
-  // let lastPoint = new THREE.Vector3();
-  // for(let i = 0; i < verticesDistances.length; i++){
-  //   let currentPoint = new THREE.Vector3();
-  //   currentPoint.copy(verticesDistances[i].d);
-  //   if(currentPoint != lastPoint){
-  //     for(let j = 0; j < triangles.length; j++){
-
-  //     }
-  //   }
-  // }
-
-  
+function higherInterest(o){
   
 }
 
-function compareF(a, b) {
-  return a.f - b.f
-}
+function generatePath(initialPos, quat, finalPos){
 
-function SameSide(p1,p2, a,b){
-  let v1 = new THREE.Vector3();
-  v1.copy(b).sub(a);
-  let v2= new THREE.Vector3();
-  v2.copy(p1).sub(a);
-  let v3= new THREE.Vector3();
-  v3.copy(p2).sub(a);
+  playerNavMeshGroup = pathfinder.getGroup('level', initialPos);
 
-  let cp1 = new THREE.Vector3();
-  cp1.crossVectors(v1, v2)
-  let cp2 = new THREE.Vector3();
-  cp2.crossVectors(v1, v3);
+  calculatedPath = pathfinder.findPath(initialPos, finalPos, 'level', playerNavMeshGroup);
 
-  let dotValue = cp1.dot(cp2);
-  if (dotValue >= 0 ){
-    return true
-  } else {
-    return false
+  let tempPos = [];
+  tempPos.push(initialPos);
+  for(let i = 0; i < calculatedPath.length; i++){
+    tempPos.push(calculatedPath[i]);
   }
-}
-
-function PointInTriangle(p, a,b,c){
-  let bool1 = SameSide(p,a, b,c);
-  let bool2 = SameSide(p,b, a,c);
-  let bool3 = SameSide(p,c, a,b);
-
-  if(bool1 && bool2 && bool3){
-    return true
-  }else{
-    return false
-  }
-}
-
-function calculateF(arr, p, finalPoint){
-  let tempResults = [];
-  for(let i = 0; i < arr.length; i++){
-    let g = p.distanceTo(arr[i]);
-    let h = arr[i].distanceTo(finalPoint);
-    let f = g + h;
-    let tempValues = {
-      f: f,
-      v: arr[i]
-    }
-    tempResults.push(tempValues);
-    
-  }
-
-  tempResults.sort(compareF);
-  return tempResults[0];
   
+  let tempQuat = [];
+  for(let i = 0; i < tempPos.length; i++){
+    tempQuat.push(quat);
+  }
+  
+  let pathEl = {
+      position: tempPos,
+      rotationQuat: tempQuat
+  }
+  paths.push(pathEl);
+
 }
+
+
+
+
+
+
 
