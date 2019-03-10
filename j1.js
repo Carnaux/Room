@@ -54,10 +54,10 @@ let controls = new THREE.OrbitControls(camera, renderer.domElement);
 document.addEventListener("mousedown", onDocumentMouseDown, false);
 
 
+createAOI("food", new THREE.Vector3(3,0.3, -6));
+createAOI("books", new THREE.Vector3(1, 0.3, 6));
 
-objects.push(player);
-
-
+console.log(AOIs);
 
 function animate() {
   requestAnimationFrame(animate);
@@ -86,14 +86,12 @@ function onDocumentMouseDown(event) {
     navMesh.raycast(raycaster, intersects);
 
     if (intersects.length > 0) {
-      var vec = new THREE.Vector3();
-      vec.copy(intersects[0].point);
+      
 
       // Calculate a path to the target and store it
       
-
-      
-
+      console.log(objects);
+      console.log(paths)
       pathfollower.preview(objects, paths);
     }
   }
@@ -182,7 +180,7 @@ function onPathLoad(event) {
 	console.timeEnd('createZone()');
 	pathfinder.setZoneData('level', zoneNodes);
 
-  createPeople();
+  createPeople(new THREE.Vector3(0, 0.3,0));
   decideWhatToDo(peopleArr[0]);
   calculatePath = true;
 }
@@ -247,13 +245,16 @@ function decideWhatToDo(person){
   keys.sort(function(a,b){
     return person.interests[b] - person.interests[a];
   });
-  let currentInterest = key[0];
+  let currentInterest = keys[0];
+  console.log(currentInterest)
 
-  closestAOI(currentInterest);
+  closestAOI(currentInterest, person);
 }
 
-function closestAOI(name){
+function closestAOI(name, person){
   let candidatePlaces = [];
+
+  let personPos = person.position
 
   for(let i = 0; i < AOIs.length; i++){
     if(AOIs[i].interest == name){
@@ -261,14 +262,18 @@ function closestAOI(name){
     }
   }
 
+  var keys = Object.keys(candidatePlaces);
+  keys.sort(function(a,b){
+    return candidatePlaces.position[b].distanceTo(personPos) - candidatePlaces.position[a].distanceTo(personPos);
+  });
+  let closest = candidatePlaces[keys[0]];
+
+  generatePath(person.position, person.body.quaternion, closest.position, person)
 
 }
 
-function higherInterest(o){
-  
-}
-
-function generatePath(initialPos, quat, finalPos){
+function generatePath(initialPos, quat, finalPos, person){
+  objects.push(person.body);
 
   playerNavMeshGroup = pathfinder.getGroup('level', initialPos);
 
