@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>ArCad-Editor</title>
+    <title>People Sim</title>
 
     <link type="text/css" rel="stylesheet" href="data/bootstrap/bootstrap.css"/>
     <link type="text/css" rel="stylesheet" href="editorStyle.css"/>
@@ -38,7 +38,21 @@
                         </div>
                     </div>
     
-                    <button type="button" class="btn marginBT row" onclick="saveKeyframe()" data-toggle="tooltip" data-placement="right" title="Keyframe (K)"><img id="imgBtPreview"  class="imgBT" src="data/src/icons/keyframe.png"></button>
+                    <div class="btn-group dropright marginBT row" data-toggle="tooltip" data-placement="right" title="Areas of Interest (B)">
+                        <button type="button" class="btn dropdown-toggle"  data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <img id="imgBtPreview"  class="imgBT" src="data/src/icons/keyframe.png">
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item"  onclick="setAois('2')"  href="#" > 
+                               Set new AOI</a>
+                            <a class="dropdown-item" onclick="setAois('1')" href="#" > 
+                               Edit AOIs</a>
+                            <a class="dropdown-item" onclick="setAois('3')" href="#" > 
+                               Set spawn</a>
+                        </div>
+                    </div>
+                   
+                   
                     <button type="button" class="btn marginBT row" onclick="preview()" data-toggle="tooltip" data-placement="right" title="Preview (P)"> <img id="imgBtPreview"  class="imgBT" src="data/src/icons/preview.png"></button>
     
                     <div class="btn-group dropright marginBT row" data-toggle="tooltip" data-placement="right" title="Export">
@@ -59,12 +73,12 @@
                             </button>
                             <div class="dropdown-menu">
                                 <input type="file" id="selectedModel" style="display: none;" onchange="onChooseFile(event, onModelLoad.bind(this))" />
-                                <input type="file" id="selectedModelFile" style="display: none;" onchange="onChooseFile(event, onModelLoadFromFile.bind(this))" />
+                                <input type="file" id="selectedModelFile" style="display: none;" onchange="onChooseFile(event, onPathLoad.bind(this))" />
                                 <a class="dropdown-item" onclick="document.getElementById('selectedModel').click();" href="#" > 
                                     Load 3D Model</a>
     
                                 <a class="dropdown-item" onclick="document.getElementById('selectedModelFile').click();" href="#" > 
-                                    Load .arcad File</a>
+                                    Load path</a>
                                
                             </div>
                     </div>  
@@ -115,6 +129,7 @@
     <script type="text/javascript" src="data/three/MTLLoader.js"></script>
     <script type="text/javascript" src="data/three/transformControls.js"></script>
     <script type="text/javascript" src="data/three/Orbit.js"></script>
+    <script type="text/javascript" src="data/three/pathfinding.js"></script>
     <script type="text/javascript" src="data/three/pathFollower.js"></script>
     <script type="text/javascript" src="data/three/geoFile.js"></script>
     <script type="text/javascript" src="data/misc/vanilla-picker.js"></script>

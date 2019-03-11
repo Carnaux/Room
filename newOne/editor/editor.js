@@ -1,8 +1,29 @@
 var scene, camera, renderer, orbit, control, gridHelper;
 
+let interestDatabase = ["food", "books"];
+
+let peopleArr = [];
+
+let AOIs = [];
+let AOIsMesh = [];
+
+let spawns = [];
+
+let clickAOIs = false;
+let clickNewAOI = false;
+let clickSpawn = false;
+
+let loadedModels = [];
+
+let loadedMaterials = [];
+
+THREE.Pathfinding = threePathfinding.Pathfinding;
+
+const pathfinder = new THREE.Pathfinding();
+
 var map = []; 
 
-var objects = [];
+let navMesh;
 
 var lastSelected;
 var lastSelectedToMaterial;
@@ -11,8 +32,13 @@ var mouse = new THREE.Vector2();
 
 var keyframes = [];
 
+let editableObjects = [];
+let nonEditable = [];
+
 var pathPoints = [];
 var pathObjs = [];
+
+let firstPerson = false;
 
 var exportPath = null;
 var exportObj = null;
@@ -86,22 +112,15 @@ function initEditor(){
     } );
     scene.add(control);
 
-    gridHelper = new THREE.GridHelper( size, divisions );
-    gridHelper.recieveShadows = true;
-    scene.add( gridHelper );
-
     camera.position.z = 5;
 
     window.addEventListener( 'resize', onWindowResize, false );
     window.addEventListener( 'mousedown', onDocumentMouseDown, false );
     document.addEventListener( 'keydown', onkeydown, false);
 
-
+    
+    
     animate();
-
-    if(window.sessionStorage.modelData != undefined){
-        onModelLoadFromFile(window.sessionStorage.modelData, 2);
-    }
 }
 
 function animate() {
@@ -131,31 +150,68 @@ function onDocumentMouseDown(event) {
     let raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
   
-    let intersects = raycaster.intersectObjects(objects);
-    
-    
+    let intersects = raycaster.intersectObjects(editableObjects);
+    let intersectsAIO = raycaster.intersectObjects(AOIsMesh);
+    let intersectsPath;
+    if(navMesh != null){
+        intersectsPath = raycaster.intersectObject(navMesh);
+    }
+   
+    //let intersectsNonEditable = raycaster.intersectObjects(nonEditable);
+
     if(event.button == 0){
+       
         if(!popMenu){
 
-            if(intersects.length > 0){ 
+            if(clickAOIs){
                 if(lastSelected == null){
-                    
-                    control.attach(intersects[0].object);
-                    lastSelected = intersects[0].object;
-                    lastSelected.material.opacity = 0.75;
-    
-                } else if(lastSelected.id != intersects[0].object.id ){
+                    control.attach(intersectsAIO[0].object);
+                    lastSelected = intersectsAIO[0].object;
+
+                }else if(lastSelected.id != intersectsAIO[0].object.id ){
                     
                     control.detach(lastSelected);
-                    lastSelected.material.opacity = 1;
-    
-                    control.attach(intersects[0].object);
-                    lastSelected = intersects[0].object;
-                    lastSelected.material.opacity = 0.75;
+                    control.attach(intersectsAIO[0].object);
+                    lastSelected = intersectsAIO[0].object;
+                    
                 }
+            }else if(clickNewAOI){
+                if(intersectsPath.length > 0){
+                    
+                    createAOI("food", intersectsPath[0].point);
+                    lastSelected = AOIsMesh[AOIsMesh.length - 1];
+                    control.attach(AOIsMesh[AOIsMesh.length - 1]);
+                    clickNewAOI = false;
+                }
+            }else if(clickSpawn){
+                if(intersectsPath.length > 0){
+                    createSpawn(intersectsPath[0].point);
+                    lastSelected = spawns[spawns.length - 1];
+                    control.attach(spawns[spawns.length - 1]);
+                    clickSpawn = false;
+                    
+                }
+            }
+
+            // if(intersects.length > 0){ 
+            //     if(lastSelected == null){
+                    
+            //         control.attach(intersects[0].object);
+            //         lastSelected = intersects[0].object;
+            //         lastSelected.material.opacity = 0.75;
+    
+            //     } else if(lastSelected.id != intersects[0].object.id ){
+                    
+            //         control.detach(lastSelected);
+            //         lastSelected.material.opacity = 1;
+    
+            //         control.attach(intersects[0].object);
+            //         lastSelected = intersects[0].object;
+            //         lastSelected.material.opacity = 0.75;
+            //     }
             
                
-            }
+            // }
         }else{
             if(event.path[0].localName == "canvas" ){
                 document.getElementById("optBt").style.display = "none";
@@ -191,15 +247,8 @@ function menuState(n){
 
 }
 
-
-
-
 function onkeydown(event){
     switch ( event.keyCode ) {
-
-     
-
-      
 
       case 81: // q
           control.setMode( "translate" );
@@ -256,204 +305,17 @@ function onkeydown(event){
     }
 }
 
-function saveKeyframe(){
-    let found = false;
-
-    let tempPos = new THREE.Vector3();
-    tempPos.copy(lastSelected.position);
-
-    let tempRot= new THREE.Quaternion();
-    tempRot.copy(lastSelected.quaternion);
-
-    var material = new THREE.LineBasicMaterial({
-        color: "rgb(255, 00, 00)"
-    });
-
-    if(keyframes.length > 0){
-        
-        for(let i = 0; i < keyframes.length; i++ ){
-            if(keyframes[i].obj == lastSelected){
-                scene.remove(keyframes[i].path);
-
-                var geometry = new THREE.Geometry();
-                
-                geometry.vertices = keyframes[i].path.geometry.vertices;
-                geometry.vertices.push(tempPos);
-
-                var line = new THREE.Line(geometry, material);
-
-                keyframes[i].path = line;
-                keyframes[i].position = line.geometry.vertices;
-                keyframes[i].rotation.push(tempRot);
-                
-                pathPoints[i].position = line.geometry.vertices;
-                pathPoints[i].rotationQuat = keyframes[i].rotation;
-                scene.add(keyframes[i].path);
-
-                found = true;
-
-                break;
-
-            }
-        }
-        if(!found){
-            var geometry = new THREE.Geometry();
-
-            geometry.vertices.push(tempPos);
-        
-            var line = new THREE.Line(geometry, material);
-           
-            let rotArr = [];
-            rotArr.push(tempRot);
-            
-            let frame = {
-                obj: lastSelected,
-                path: line,
-                position: line.geometry.vertices,
-                rotation: rotArr
-            }
-
-            scene.add(frame.path);
-
-            pathObjs.push(lastSelected);
-            
-            let transform = {
-                position: line.geometry.vertices,
-                rotationQuat: rotArr
-            }
-            pathPoints.push(transform);
-
-            keyframes.push(frame);
-        }
-            
-    }else{
-        var geometry = new THREE.Geometry();
-
-        geometry.vertices.push(tempPos);
-    
-        var line = new THREE.Line(geometry, material);
-
-        let rotArr = [];
-        rotArr.push(tempRot);
-        
-        let frame = {
-            obj: lastSelected,
-            path: line,
-            position: line.geometry.vertices,
-            rotation: rotArr
-        }
-
-        scene.add(frame.path);
-
-        pathObjs.push(lastSelected);
-
-        let transform = {
-            position: line.geometry.vertices,
-            rotationQuat: rotArr
-        }
-        pathPoints.push(transform);
-
-        keyframes.push(frame);
-    }
-    
-    if(keysOpen){
-        keysOpen = false;
-        showKeys();
-    }
-}
-
 function preview(){
+    let spawnTimer = setInterval(spawnPeople, 3000);
+    firstPerson = true;
+    createPeople(spawns[0].position);
+    decideWhatToDo(peopleArr[0]);
+    firstPerson = false;
     pathFollower.preview(pathObjs, pathPoints);
-}
-
-function exportContent(n){
-    if(n == 1){
-        let tempObj = [];
-        for(let i = 0; i < pathObjs.length; i++){
-            tempObj[i]= pathObjs[i];
-            tempObj[i].position.copy(pathPoints[i].position[0]);
-        }
-        exportObj = tempObj;
-        exportPath = pathPoints;
-
-        let geoText = geoFile.toText(objects);
-        let keyText = geoFile.keysToText(pathObjs,pathPoints);
-
-        window.sessionStorage.modelData = geoText + keyText;
-        
-    }else if(n == 2){
-        let geoText = geoFile.toText(objects);
-        let keyText = geoFile.keysToText(pathObjs,pathPoints);
-        geoFile.exportToAR(geoText, keyText, "ModelsAR");
-    }
-}
-
-function onModelLoadFromFile(event, n) {
-
-    if(n == null){
-        n = 1;
-    }
-
-    let text 
-
-    if(n == 1){
-        text = event.target.result;
-    }else if(n == 2){
-        text = event;
-    }
     
- 
-    let toAdd = geoFile.importInAR(text);
-
-    for(let i = 0; i < toAdd.meshesArr.length; i++){
-        toAdd.meshesArr[i].mesh.castShadow = true;
-        for(let j = 0; j < toAdd.keyframes.length; j++){
-            if(toAdd.meshesArr[i].id == toAdd.keyframes[j].id ){
-                tempId = toAdd.meshesArr[i].id;
-                break;
-            }
-        }
-        toAdd.meshesArr[i].mesh.position.copy(toAdd.keyframes[i].position[0]);
-
-        scene.add(toAdd.meshesArr[i].mesh);
-
-        let addedMesh = scene.children[scene.children.length - 1];
-
-        objects.push(addedMesh);
-
-        var material = new THREE.LineBasicMaterial({
-            color: "rgb(255, 00, 00)"
-        });
-
-        var geometry = new THREE.Geometry();
-
-        for(let j = 0; j < toAdd.keyframes[i].position.length; j++){
-            geometry.vertices.push(toAdd.keyframes[i].position[j]);
-        }
     
-        var line = new THREE.Line(geometry, material);
+    
 
-        scene.add(line);
-
-        let frame = {
-            obj: addedMesh,
-            path: line,
-            position: line.geometry.vertices,
-            rotation: toAdd.keyframes[i].rotationQuat
-        }
-
-        keyframes.push(frame);
-
-        pathObjs.push(addedMesh);
-        let transform = {
-            position:  keyframes[i].position,
-            rotationQuat: keyframes[i].rotation
-        }
-        pathPoints.push(transform);
-        
-    }
-
-    this.value = "";
 }
 
 function onModelLoad(event) {
@@ -487,10 +349,10 @@ function onModelLoad(event) {
         );
         obj.position.copy(pos);
         obj.castShadow = true;
-        obj.position.set(0,1,0);
+        obj.position.set(0,0,0);
         scene.add(obj);
         
-        objects.push(obj);
+        nonEditable.push(obj);
       }
     } else {
       let geometry = new THREE.Geometry();
@@ -499,14 +361,44 @@ function onModelLoad(event) {
       let obj = new THREE.Mesh(geometry, objMa);
       obj.position.copy(pos);
       obj.castShadow = true;
-      obj.position.set(0,1,0);
+      obj.position.set(0,0,0);
       scene.add(obj);
   
       
-      objects.push(obj);
+      nonEditable.push(obj);
     }
 
     this.value = "";
+}
+
+function onPathLoad(event) {
+    let pathData = event.target.result;
+  
+    let objLoader = new THREE.OBJLoader();
+  
+    let nav = objLoader.parse(pathData);
+  
+    var geometry = new THREE.Geometry().fromBufferGeometry(  nav.children[0].geometry);
+    
+  
+    let obj = new THREE.Mesh(
+      geometry,
+      nav.children[0].material
+    );
+    obj.material.wireframe = true;
+    obj.position.set(0,0,0);
+    navMesh = obj;
+    scene.add(obj);
+  
+    console.time('createZone()');
+    var zoneNodes = THREE.Pathfinding.createZone(geometry);
+    console.timeEnd('createZone()');
+    pathfinder.setZoneData('level', zoneNodes);
+
+    createAOI("food", new THREE.Vector3(3,0.3, -6));
+    createAOI("books", new THREE.Vector3(0.5, 0.3, 6));
+   
+    calculatePath = true;
 }
   
 function onMaterialLoad(event) {
@@ -582,9 +474,9 @@ function setModelColor(){
 }
 
 function deleteSelected(){
-    for(let i = 0; i < objects.length; i++){
-        if(objects[i].id == lastSelected.id){
-           objects.splice(i, 1);
+    for(let i = 0; i < editableObjects.length; i++){
+        if(editableObjects[i].id == lastSelected.id){
+           editableObjects.splice(i, 1);
         }
     }
 
@@ -603,218 +495,10 @@ function deleteSelected(){
     document.getElementById("optBt").style.display = "none";
 }
 
-function showKeys(){
-    
-    let keyArrIndex;
-    let parent = document.getElementById("elementsWrapper");
-
-    for(let i = 0; i < keyframes.length; i++ ){
-        if(keyframes[i].obj.id == lastSelected.id){
-            keyArrIndex = i;
-        }
-    }
-
-    if(keyArrIndex != null){ 
-        
-        if(!keysOpen){
-            keysOpen = true;
-
-            document.getElementById("timeline").style.display = "block";
-            
-            
-            let qtnFrames = keyframes[keyArrIndex].position.length;
-            let childs = parent.childNodes.length;
-
-            let indexFrames;
-
-            if(childs > 0){
-                indexFrames = childs;
-            }else{
-                indexFrames = 0;
-            }
-           
-            for(let i = indexFrames; i < qtnFrames; i++){
-    
-                let leftDistance = i * 100;
-    
-                var btn = document.createElement("DIV");
-                let attrIndex = "a" + keyArrIndex + "k" + i;
-    
-                var attClass = document.createAttribute("class");
-                attClass.value = "keyframeDot"; 
-                btn.setAttributeNode(attClass); 
-    
-                var attId = document.createAttribute("id");
-                attId.value = attrIndex; 
-                btn.setAttributeNode(attId); 
-    
-                var attClick = document.createAttribute("onclick");
-                attClick.value = "selectedKey(this)"; 
-                btn.setAttributeNode(attClick); 
-    
-                btn.style.left = leftDistance + "px";
-    
-                parent.appendChild(btn);
-    
-            }
-        }else{
-            document.getElementById("timeline").style.display = "none";
-            document.getElementById("keysMenu").style.display = "none";
-            keysOpen = false;
-        }
-       
-    }
-
-    document.getElementById("optBt").style.display = "none";
-}
-
-function selectedKey(el){
-    pathUpdate = false;
-    let element =  document.getElementById("timeline");
-    let rect = element.getBoundingClientRect();
-    element.style.borderTopRightRadius = 0;
-    document.getElementById("keysMenu").style.display = "block";
-    document.getElementById("keysMenu").style.left = rect.right + "px";
-
-    
-
-    let kId;
-    let pId;
-    let tempJ;
-
-    for(let i = 0; i < el.id.length; i++){
-        if(el.id[i] == "a"){
-            for(let j = 0; j < el.id.length; j++){
-                if(el.id[j] == "k"){
-                    tempJ = j;
-                }
-            }
-
-            let n;
-
-            for(let j = i+1; j < tempJ; j++){
-                if(n == null){
-                    n = el.id[j];
-                }else{
-                    n += el.id[j];
-                }
-            }
-            
-            i = tempJ-1;
-            kId = n;
-
-        }else if(el.id[i] == "k"){
-           
-            let n;
-
-            for(let j = i+1; j < el.id.length; j++){
-                if(n == null){
-                    n = el.id[j];
-                }else{
-                    n += el.id[j];
-                }
-            }
-            
-            pId = n;
-        }
-    }
-
-    if(lastKeySelectedElement != null){
-
-        if(lightState){
-           lastKeySelectedElement.style.backgroundColor = "rgb(134,142,150)";
-            
-           // lastKeySelectedElement.style.backgroundColor = "rgb(255,0,0)";
-            
-          
-        }else{
-            //lastKeySelectedElement.style.backgroundColor = "rgb(134,142,150)";
-            
-            lastKeySelectedElement.style.backgroundColor = "white";
-        }
-        
-        lastKeySelected.x = kId;
-        lastKeySelected.y = pId;
-
-        //new 
-        lastKeySelectedElement = el;
-
-        lastKeySelectedElement.style.backgroundColor = "rgb(184,192,200)";
-        
-    }else{
-        lastKeySelectedElement = el;
-
-        lastKeySelectedElement.style.backgroundColor = "rgb(184,192,200)";
-         
-        lastKeySelected.x = kId;
-        lastKeySelected.y = pId;
-    }
-    
-   
-
-    lastSelected.position.copy(keyframes[kId].position[pId]);
-    lastSelected.quaternion.copy(keyframes[kId].rotation[pId]);
-}
-
-function resetKey(){
-    for(let i = 0; i < keyframes.length; i++){
-        if(lastSelected.id == keyframes[i].obj.id ){
-            lastSelected.position.copy(keyframes[i].position[keyframes[i].position.length - 1]);
-            lastSelected.quaternion.copy(keyframes[i].rotation[keyframes[i].rotation.length - 1]);
-        }
-    }
-}
-    
-function deleteKey(){
-    
-    if(lastKeySelected != null){
-        let parent = document.getElementById("elementsWrapper");
-
-    
-        keyframes[lastKeySelected.x].position.splice(lastKeySelected.y, 1);
-        keyframes[lastKeySelected.x].rotation.splice(lastKeySelected.y, 1);
-
-       
-        let LastKeyid = "a" + lastKeySelected.x + "k" + lastKeySelected.y;
-
-        for(let i = 0; i < parent.childNodes.length; i++){
-            if(parent.childNodes[i].id == LastKeyid){
-                parent.removeChild(parent.childNodes[i]);
-            }
-        }
-
-        scene.remove(keyframes[lastKeySelected.x].path);
-
-        var material = new THREE.LineBasicMaterial({
-            color: "rgb(255, 00, 00)"
-        });
-
-        var geometry = new THREE.Geometry();
-        
-        geometry.vertices = keyframes[lastKeySelected.x].position;
-
-        var line = new THREE.Line(geometry, material);
-
-        keyframes[lastKeySelected.x].path = line;
-
-        scene.add(keyframes[lastKeySelected.x].path);
-
-        let tempPosArr = keyframes[lastKeySelected.x].position;
-        let tempRotArr = keyframes[lastKeySelected.x].rotation;
-
-        keyframes[lastKeySelected.x].obj.position.copy(tempPosArr[tempPosArr.length - 1]);
-        keyframes[lastKeySelected.x].obj.quaternion.copy(tempRotArr[tempRotArr.length - 1]);
-        keysOpen = false;
-        showKeys();
-    }
-}
-
 function changeStyleColor(){
     if(lightState){ 
         scene.background = new THREE.Color("rgb(134,142,150)");
-        scene.remove(gridHelper);
-        gridHelper = new THREE.GridHelper( size, divisions, new THREE.Color(0xffffff), new THREE.Color(0xffffff) );
-        scene.add(gridHelper);
+        
         
         document.getElementById("lightBt").style.backgroundColor = "white";
         
@@ -842,9 +526,7 @@ function changeStyleColor(){
         lightState = false;
     }else{
         scene.background = new THREE.Color("rgb(255,255,255)");
-        scene.remove(gridHelper);
-        gridHelper = new THREE.GridHelper( size, divisions);
-        scene.add(gridHelper);
+        
         
         document.getElementById("lightBt").style.backgroundColor = "rgb(134,142,150)";
         
@@ -873,9 +555,194 @@ function changeStyleColor(){
     }
 }
 
-function goToViewer(){
-    exportContent(1);
-    document.location.href = "../viewer/viewer.html";
+function createPeople(pos){
+    var geometry = new THREE.SphereGeometry( 0.25, 32, 32 );
+    var material = new THREE.MeshBasicMaterial( {color: new THREE.Color("rgb(0,255,0)")} );
+    let personMesh = new THREE.Mesh( geometry, material );
+
+    let personPosition = new THREE.Vector3();
+    personPosition.copy(pos);
+    personMesh.position.copy(pos);
+
+    let personInterests = {};
+
+    for(let i = 0; i < interestDatabase.length; i++){
+      personInterests[interestDatabase[i]] = Math.floor(Math.random() * 11) + 1 ;
+    }
+
+    //personInterests["money"] = Math.floor(Math.random() * 4) +1 ;
+
+    //console.log(personInterests);
+  
+    let person = {
+      body: personMesh,
+      interests: personInterests,
+      position: personPosition,
+      money:  Math.floor(Math.random() * 3) + 1
+    }
+    
+    scene.add(personMesh);
+    peopleArr.push(person);
+}
+  
+function createAOI(interest, position){
+    var geometry = new THREE.BoxGeometry( 0.5, 0.5, 0.5 );
+    var material = new THREE.MeshBasicMaterial( {color: new THREE.Color("rgb(255,255,0)")} );
+    let buildingMesh = new THREE.Mesh( geometry, material );
+  
+    buildingMesh.position.copy(position);
+    let areaOfInterest = {
+      mesh: buildingMesh,
+      interest: interest,
+    }
+  
+    AOIs.push(areaOfInterest);
+    AOIsMesh.push(buildingMesh);
+    scene.add(buildingMesh);
+}
+
+function createSpawn(position){
+    var geometry = new THREE.BoxGeometry( 0.5, 0.5, 0.5 );
+    var material = new THREE.MeshBasicMaterial( {color: new THREE.Color("rgb(255,0,0)")} );
+    let buildingMesh = new THREE.Mesh( geometry, material );
+  
+    buildingMesh.position.copy(position);
+
+    scene.add(buildingMesh);
+    spawns.push(buildingMesh);
+}
+
+function spawnPeople(){
+    console.log("trying to spawn:");
+    for(let i = 0; i < spawns.length; i++){
+        let doSpawn = Math.floor(Math.random() * 2);
+        if(doSpawn == 1){
+            let wichSpawn = Math.floor(Math.random() * spawns.length);
+            
+            createPeople(spawns[wichSpawn].position);
+            decideWhatToDo(peopleArr[peopleArr.length -1]);
+            
+        }
+    }
+    console.log("end");
+}
+  
+function decideWhatToDo(person){
+    var keys = Object.keys(person.interests);
+    keys.sort(function(a,b){
+      return person.interests[b] - person.interests[a];
+    });
+    let currentInterest = keys[0];
+    console.log("interest",currentInterest)
+  
+    closestAOI(currentInterest, person);
+}
+  
+function closestAOI(name, person){
+    let candidatePlaces = [];
+  
+    let personPos = person.position
+  
+    for(let i = 0; i < AOIs.length; i++){
+      if(AOIs[i].interest == name){
+
+        let tempObj = {
+            aoi: AOIs[i],
+            distance: AOIs[i].mesh.position.distanceTo(personPos)
+        }
+        candidatePlaces.push(tempObj);
+      }
+    }
+  
+    
+    candidatePlaces.sort(function(a,b){
+      return  a.distance - b.distance;
+    });
+
+    let closest = candidatePlaces[0];
+    console.log
+  
+    generatePath(person.position, closest.aoi.mesh.position, person)
+    
+}
+  
+function generatePath(initialPos, finalPos, person){
+    let tempIndex;
+    let found = false;
+    
+    if(pathObjs.length > 0){
+        let tempFound = false;
+        for(let i = 0; i < pathObjs.length; i++){
+            if(pathObjs[i].id == person.body.id){
+                tempIndex = i;
+                found = true;
+                tempFound = true;
+                break;
+            }
+        }
+        if(!tempFound){
+            pathObjs.push(person.body);
+        }
+
+    }else{
+        pathObjs.push(person.body);
+    }
+    
+    playerNavMeshGroup = pathfinder.getGroup('level', initialPos);
+
+    calculatedPath = pathfinder.findPath(initialPos, finalPos, 'level', playerNavMeshGroup);
+    
+    let tempPos = [];
+    tempPos.push(initialPos);
+    for(let i = 0; i < calculatedPath.length; i++){
+      tempPos.push(calculatedPath[i]);
+    }
+    
+    let tempQuat = [];
+    for(let i = 0; i < tempPos.length; i++){
+      tempQuat.push(person.body.quaternion);
+    }
+    
+    let pathEl = {
+        position: tempPos,
+        rotationQuat: tempQuat
+    }
+
+    
+    if(found){
+        pathPoints[tempIndex] = pathEl;
+        if(!firstPerson){
+            pathFollower.add(null, pathEl, pathObjs[tempIndex].id);
+        }
+        
+    }else{
+        let objIndex = pathObjs.length - 1;
+        pathPoints[objIndex] = pathEl;
+        if(!firstPerson){
+            pathFollower.add(pathObjs[objIndex], pathPoints[objIndex]);
+        }
+    }
+
+   
+  
+}
+
+function setAois(n){
+    // if(n == 1){
+
+    // }
+    switch(n){
+        case "1":
+            clickAOIs = !clickAOIs;
+            break;
+        case "2":
+            clickNewAOI = !clickNewAOI;
+            break;
+        case "3":
+            clickSpawn = !clickSpawn;
+            break;
+    }
+  
 }
 
 window.onload = initEditor;

@@ -9,6 +9,7 @@ class PathFollower{
     }   
 
     preview(obj, path){
+        console.log("path",obj)
         this.objArr = obj;
         this.pathArr = path;
         for(let i = 0; i < obj.length; i++){
@@ -63,5 +64,31 @@ class PathFollower{
            
         }
     }
+
+    add(obj, path){
+        
+        if(obj != null && path != null){
+            if(this.objArr == null){
+                this.objArr = [];
+                this.objArr.push(obj);
+                this.pathArr = [];
+                this.pathArr.push(path);
+                this.previewState = [];
+                this.previewState.push(0);
+            }else{
+                for(let i = 0; i < this.objArr.length; i++){
+                    if(this.objArr[i].id == obj.id){
+                        this.pathArr[i].push(path);
+                        
+                    }else{
+                        this.objArr.push(obj);
+                        this.pathArr[i].push(path);
+                    }
+                }
+                this.previewState.push(0);
+            }
+        }
+    }
+
     ease(t) { return t<0.5 ? 2*t*t : -1+(4-2*t)*t}
 }

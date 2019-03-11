@@ -19,7 +19,7 @@ const pathfinder = new THREE.Pathfinding();
 
 const mouse = new THREE.Vector2();
 
-let player, level;
+let level;
 
 let playerNavMeshGroup, calculatedPath;
 
