@@ -78,6 +78,8 @@ class PathFollower{
             for(let i = 0; i < this.objArr.length; i++){
                 if(this.objArr[i].id == id){
                     this.pathArr[i] = pathEl;
+                    this.tArr[i] = 0;
+                    this.previewState[i] = 0;
                     break;
                 }
             }

@@ -4,6 +4,8 @@ let interestDatabase = ["food", "books"];
 
 let peopleArr = [];
 
+let peopleInside = [];
+
 let AOIs = [];
 let AOIsMesh = [];
 
@@ -127,6 +129,8 @@ function animate() {
     requestAnimationFrame( animate );
    
     pathFollower.update();
+
+    
     
     render();
 }
@@ -306,16 +310,13 @@ function onkeydown(event){
 }
 
 function preview(){
-    let spawnTimer = setInterval(spawnPeople, 3000);
+    let spawnTimer = setInterval(managePeople, 3000);
     firstPerson = true;
     createPeople(spawns[0].position);
+    // playerNavMeshGroup = pathfinder.getGroup('level', peopleArr[0].body.position);
     decideWhatToDo(peopleArr[0]);
     firstPerson = false;
     pathFollower.preview(pathObjs, pathPoints);
-    
-    
-    
-
 }
 
 function onModelLoad(event) {
@@ -556,7 +557,7 @@ function changeStyleColor(){
 }
 
 function createPeople(pos){
-    var geometry = new THREE.SphereGeometry( 0.25, 32, 32 );
+    var geometry = new THREE.BoxGeometry( 0.15, 0.25, 0.15);
     var material = new THREE.MeshBasicMaterial( {color: new THREE.Color("rgb(0,255,0)")} );
     let personMesh = new THREE.Mesh( geometry, material );
 
@@ -578,6 +579,7 @@ function createPeople(pos){
       body: personMesh,
       interests: personInterests,
       position: personPosition,
+      inside: false,
       money:  Math.floor(Math.random() * 3) + 1
     }
     
@@ -594,6 +596,7 @@ function createAOI(interest, position){
     let areaOfInterest = {
       mesh: buildingMesh,
       interest: interest,
+      cost: Math.floor(Math.random() * 11) + 1
     }
   
     AOIs.push(areaOfInterest);
@@ -633,7 +636,7 @@ function decideWhatToDo(person){
       return person.interests[b] - person.interests[a];
     });
     let currentInterest = keys[0];
-    console.log("interest",currentInterest)
+
   
     closestAOI(currentInterest, person);
 }
@@ -641,7 +644,7 @@ function decideWhatToDo(person){
 function closestAOI(name, person){
     let candidatePlaces = [];
   
-    let personPos = person.position
+    let personPos = person.body.position
   
     for(let i = 0; i < AOIs.length; i++){
       if(AOIs[i].interest == name){
@@ -659,10 +662,12 @@ function closestAOI(name, person){
       return  a.distance - b.distance;
     });
 
+    
     let closest = candidatePlaces[0];
+    person["target"] = closest;
     console.log
   
-    generatePath(person.position, closest.aoi.mesh.position, person)
+    generatePath(person.body.position, closest.aoi.mesh.position, person)
     
 }
   
@@ -682,10 +687,12 @@ function generatePath(initialPos, finalPos, person){
         }
         if(!tempFound){
             pathObjs.push(person.body);
+            person["pathObjsId"] = pathObjs[pathObjs.length - 1];
         }
 
     }else{
         pathObjs.push(person.body);
+        person["pathObjsId"] = pathObjs[pathObjs.length - 1];
     }
     
     playerNavMeshGroup = pathfinder.getGroup('level', initialPos);
@@ -712,6 +719,8 @@ function generatePath(initialPos, finalPos, person){
     if(found){
         pathPoints[tempIndex] = pathEl;
         if(!firstPerson){
+            console.log("ja tem");
+            console.log("generating path", pathEl)
             pathFollower.add(null, pathEl, pathObjs[tempIndex].id);
         }
         
@@ -728,9 +737,6 @@ function generatePath(initialPos, finalPos, person){
 }
 
 function setAois(n){
-    // if(n == 1){
-
-    // }
     switch(n){
         case "1":
             clickAOIs = !clickAOIs;
@@ -744,5 +750,84 @@ function setAois(n){
     }
   
 }
+
+function enterAOI(person) {
+
+
+    if(!person.inside){
+        if(person.target.aoi.interest != "spawn"){
+            console.log("no spawn", person);
+            if(person.body.position.equals(person.target.aoi.mesh.position)){
+            
+                
+                let tempObj = {
+                    person: person,
+                    id: peopleInside.length
+                }
+                person.inside = true;
+                peopleInside.push(person);
+                
+                person.interests[person.target.aoi.interest] = 0;
+                managePeopleInside(tempObj);
+                //let timeToGo = setTimeout( managePeopleInside(tempObj), Math.floor(Math.random() * 2000));
+            }
+        }else{
+            console.log("spawn");
+            if(person.body.position.equals(person.target.aoi.mesh.position)){
+                
+                pathObjs.splice(person.pathObjsId, 1);
+                pathPoints.splice(person.pathObjsId, 1);
+                peopleArr.splice(person.pathObjsId, 1);
+                    
+                scene.remove(person.body);
+            }
+        }
+    }
+    
+   
+}
+
+function managePeopleInside(o){
+   
+       
+        console.log("time to goooo");
+        console.log(peopleInside.length);
+        //decide to go out or go to other interest
+        let decide = Math.floor(Math.random() * 2);
+        if(decide == 1){//other interest
+            decideWhatToDo(o.person);
+            peopleInside.splice( o.id, 1);
+            o.person.inside = false;
+        }else{// go out
+            let spawnIndex = Math.floor(Math.random() * spawns.length);
+            generatePath(o.person.body.position, spawns[spawnIndex].position, o.person);
+            peopleInside.splice( o.id, 1);
+
+            let areaOfInterest = {
+                mesh: spawns[spawnIndex],
+                interest: "spawn",
+                cost: Math.floor(Math.random() * 11) + 1
+              }
+
+            o.person.target.aoi = areaOfInterest;
+            o.person.inside = false;
+        }
+        console.log(peopleInside.length);
+
+    
+
+    // // //decide if will buy
+    // // let buy = Math.floor(Math.random() * );
+}
+
+function managePeople(){
+    for(let i = 0; i < peopleArr.length; i++){
+        enterAOI(peopleArr[i]);
+    }
+   // spawnPeople();
+   // managePeopleInside()
+}
+
+
 
 window.onload = initEditor;
