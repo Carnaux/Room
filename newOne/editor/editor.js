@@ -1,3 +1,8 @@
+// ************************************
+// Created by Daniel Fernandes - 2019
+// carnaux.github.io
+// ************************************
+
 var scene, camera, renderer, orbit, control, gridHelper;
 
 let interestDatabase = ["food", "books"];
