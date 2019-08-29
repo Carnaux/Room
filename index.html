@@ -1,41 +1,94 @@
-<html>
-  <head>
-    <title>My first three.js app</title>
-    <style>
-      body {
-        margin: 0;
-      }
-      canvas {
-        width: 100%;
-        height: 100%;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="overlay">
-      Add a model:<input
-        type="file"
-        onchange="onChooseFile(event, onModelLoad.bind(this))"
-      />
-      Add a material:<input
-        type="file"
-        onchange="onChooseFile(event, onMaterialLoad.bind(this))"
-      />Load: <button id="startBT" onclick="loadOBJMTL()">Load</button>
-
-      Add the Paths:<input
-        type="file"
-        onchange="onChooseFile(event, onPathLoad.bind(this))"
-      />
-    </div>
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Room</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css?family=Lexend+Deca&display=swap" rel="stylesheet">
+</head>
+<body style="background-color: rgb(51,51,51); font-family: 'Lexend Deca', sans-serif;">
     
-    <script src="three.js"></script>
-    <script src="earcut.js"></script>
-    <script src="Orbit.js"></script>
-    <script src="OBJLoader.js"></script>
-    <script src="MTLLoader.js"></script>
-    <script src="pathfollower.js"></script>
-    <script src="pathfinding.js"></script>
-    <script src="j1.js"></script>
-  </body>
+    <div  class="container-fluid" style="margin: 0; padding:0;">
+        <div id="logo" class="row" style="margin-top: 20px;">
+            <div class="col text-center" style="color: #00fe50;">
+                <svg width="25mm" height="21,18mm" version="1.1" viewBox="0 0 51.94923 43.18366" xmlns="http://www.w3.org/2000/svg">
+                    <g transform="translate(-99.73361 -127.2317)" fill="none" stroke-width=".5">
+                        <path d="m150.5128 148.054 1.02903 11.92691-8.74643 2.6894-1.16931-12.30109m-1.35218-1.55972 5.84231-1.66755-14.1252-17.58634-27.87621 7.29646 12.81558 18.42823 6.99664-2.07422 1.37558 1.79359-9.93909 2.89987-15.41143-21.93614 33.72274-8.5827 16.83797 20.6733-8.88671 2.31522z" stroke="#1cf276"/>
+                        <g stroke="#00fe50">
+                        <path d="m140.2739 148.8095 1.35218 12.59796 1.16931 1.26285"/>
+                        <path d="m125.3026 154.9997 1.77734 12.48817"/>
+                        <path d="m115.3636 157.8996 2.08136 12.34785 9.63507-2.75955"/>
+                        <path d="m99.95212 135.9634 2.385379 12.39462"/>
+                        <path d="m102.3375 148.358 15.10741 21.88937"/>
+                        <path d="m131.991 129.5556 1.16051 12.33238 7.40834 9.45886"/>
+                        <path d="m133.1516 141.888-21.56354 5.75469"/>
+                        </g>
+                    </g>
+                </svg>
+                ROOM
+            </div>
+        </div>
+        <div id="nav" class="row" style="margin-top: 30px">
+            <div class="col text-center">
+                <button id="btdemo" class="btn btn-outline-success" onclick="buttonChange()">Demos</button>
+                <a class="btn btn-outline-success" href="https://github.com/Carnaux/People-Flow-Simulation">Github</a>
+            </div>
+        </div>
+        <div id="content1" class="row" style="margin-top: 50px">
+            <div class="col text-center">
+                <img src="src/render3.png" style="width: 100%; height: auto; opacity: 0.75;">
+                <div id="text1" class="centered" style="color:white;">Dynamically simulate people flow in buildings</div>
+            </div>
+        </div>
+        <div id="content2" class="row" style="margin-top: 100px">
+            <div class="col text-center">
+                <div id="text1"  style="color:white; font-size: 18px">The simulation is based on points of interest. The user will set them accordingly to what is being simulated, for example, a shopping will have clothing stores, movies, food etc. Each person spawned has a number linked to a interest, the highest number determines where he will go. </div>
+            </div>
+        </div>
+        <div id="content3" class="row" style="margin-top: 50px">
+            <div class="col text-center">
+                <img src="src/renderObject.png" class="imgStyle1">
+                <div id="text1"  style="color:white; font-size: 20px">It is possible to add points of interest the size of shelf items</div>
+            </div>
+            <div class="col text-center">
+                <img src="src/renderRoompng.png" class="imgStyle1">
+                <div id="text1"  style="color:white; font-size: 20px">It is possible to add points of interest the size of rooms</div>
+            </div>
+        </div>
+        <div id="content4" class="row" style="margin-top: 40px">
+            <div class="col text-center">
+                <img src="src/renderText2.png" style="width: 100%; height: auto; opacity: 0.75;">
+                
+            </div>
+        </div>
+        <div id="content5" class="row" style="margin-top: 100px">
+            <div class="col text-center">
+                <div id="text1"  style="color:white; font-size: 18px">After a person satifies one of the interests he will go to the next one or go home, this decision is randomly generated.</div>
+            </div>
+        </div>
+        <div id="content6" class="row" style="margin-top: 100px">
+            <div class="col text-center">
+                <img src="src/renderExit.png" class="imgStyle1">
+                <div id="text1"  style="color:white; font-size: 20px">Create entrances and exits where you want</div>
+            </div>
+        </div>
+    </div>
+    
+
+
+
+    <script>
+    var buttonChange = () => {
+        document.getElementById("btdemo").textContent = "Soon";
+    }
+    </script>
+
+
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+</body >
 </html>
