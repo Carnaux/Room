@@ -129,50 +129,13 @@ function initEditor(){
     window.addEventListener( 'mousedown', onDocumentMouseDown, false );
     document.addEventListener( 'keydown', onkeydown, false);
 
+    let rObj = loadDemoObjects();
+    scene.add(rObj.b);
+    scene.add(rObj.p);
     
     
-    mtlLoader.load( 'data/models/building.mtl', onLoadMtlBuilding );
-    mtlLoader.load( 'data/models/path.mtl', onLoadMtlPath );
     
     animate();
-}
-
-
-function callbackOnLoad( event ) {
-    let object = event.children[0];
-    nonEditable.push(object);
-    scene.add( object );
-}
-
-function callbackOnLoadPath( event ) {
-    
-    let object = event.children[0];
-    var geometry = new THREE.Geometry().fromBufferGeometry(  object.geometry);
-    let obj = new THREE.Mesh(
-        geometry,
-        object.material
-    );
-    obj.material.wireframe = true;
-    obj.position.set(0,0,0);
-    navMesh = obj;
-    scene.add(obj);
-
-    var zoneNodes = THREE.Pathfinding.createZone(geometry);
-    pathfinder.setZoneData('level', zoneNodes);
-   // calculatePath = true;
-}
-
-function onLoadMtlBuilding( mtlParseResult ) {
-    objLoader.setModelName( "building" );
-    objLoader.setLogging( true, true );
-    objLoader.addMaterials( MtlObjBridge.addMaterialsFromMtlLoader( mtlParseResult ) );
-    objLoader.load( 'data/models/building.obj', callbackOnLoad, null, null, null, false );
-}
-function onLoadMtlPath( mtlParseResult ) {
-    objLoaderPath.setModelName( "path" );
-    objLoaderPath.setLogging( true, true );
-    objLoaderPath.addMaterials( MtlObjBridge.addMaterialsFromMtlLoader( mtlParseResult ) );
-    objLoaderPath.load( 'data/models/path.obj', callbackOnLoadPath, null, null, null, false );
 }
 
 function animate() {
@@ -190,7 +153,50 @@ function render(){
 }
 
 function loadDemoObjects(){
+    let buildingObj = new THREE.Object3D();
+    let pathObj = new THREE.Object3D();
+    let returnObj = {
+        b: buildingObj,
+        p: pathObj
+    };
+    
+    var loader = new THREE.OBJLoader();
 
+    // load a resource
+    loader.load(
+        // resource URL
+        './data/models/building.obj',
+        // called when resource is loaded
+        function ( object ) {
+    
+            returnObj.b.add( object );
+    
+        }
+    );
+
+    loader.load(
+        // resource URL
+        './data/models/path.obj',
+        // called when resource is loaded
+        function ( object ) {
+            
+            var geometry = new THREE.Geometry().fromBufferGeometry(  object.children[0].geometry);
+            let obj = new THREE.Mesh(
+                geometry,
+                object.children[0].material
+            );
+            obj.material.wireframe = true;
+            obj.position.set(0,0,0);
+            navMesh = obj;
+            var zoneNodes = THREE.Pathfinding.createZone(geometry);
+            pathfinder.setZoneData('level', zoneNodes);
+            returnObj.p.add( obj );
+    
+        }
+    );
+
+    
+    return returnObj;
 }
 
 function onWindowResize() {
@@ -352,12 +358,12 @@ function onkeydown(event){
           control.enabled = ! control.enabled;
           break;
 
-      case 75: // k
-          saveKeyframe();
+      case 68: // d
+          deselect();
           break;
           
       case 80:
-          preview();
+          simulate();
           break;
 
     }
@@ -755,8 +761,8 @@ function managePeople(){
     for(let i = 0; i < peopleArr.length; i++){
         enterAOI(peopleArr[i]);
     }
-   // spawnPeople();
-   // managePeopleInside()
+   //spawnPeople();
+   //managePeopleInside()
 }
 
 
