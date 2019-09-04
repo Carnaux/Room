@@ -8,7 +8,7 @@ var scene, camera, renderer, orbit, control, gridHelper;
 
 var loaded1, loaded2;
 
-let interestDatabase = ["food", "books"];
+let interestDatabase = ["food"];
 
 let peopleArr = [];
 
@@ -74,7 +74,7 @@ var geoFile = new GeoFile();
 var elementPicker = document.getElementById("colorPicker");
 var picker = new Picker(elementPicker);
 
-
+let rObj;
 
 function initEditor(){
     document.getElementById("editor").style.display = "block";
@@ -129,7 +129,7 @@ function initEditor(){
     window.addEventListener( 'mousedown', onDocumentMouseDown, false );
     document.addEventListener( 'keydown', onkeydown, false);
 
-    let rObj = loadDemoObjects();
+    rObj = loadDemoObjects();
     scene.add(rObj.b);
     scene.add(rObj.p);
     
@@ -203,6 +203,14 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize( window.innerWidth, window.innerHeight );
+}
+
+function showPath(n){
+    if(n == 2){
+        rObj.p.visible = false;
+    }else{
+        rObj.p.visible = true;
+    }
 }
 
 function onDocumentMouseDown(event) {
@@ -526,7 +534,7 @@ function createPeople(pos){
   
 function createAOI(interest, position){
     var geometry = new THREE.BoxGeometry( 0.5, 0.5, 0.5 );
-    var material = new THREE.MeshBasicMaterial( {color: new THREE.Color("rgb(255,255,0)")} );
+    var material = new THREE.MeshBasicMaterial( {color: new THREE.Color("rgb(255,0,0)")} );
     let buildingMesh = new THREE.Mesh( geometry, material );
   
     buildingMesh.position.copy(position);
@@ -543,7 +551,7 @@ function createAOI(interest, position){
 
 function createSpawn(position){
     var geometry = new THREE.BoxGeometry( 0.5, 0.5, 0.5 );
-    var material = new THREE.MeshBasicMaterial( {color: new THREE.Color("rgb(255,0,0)")} );
+    var material = new THREE.MeshBasicMaterial( {color: new THREE.Color("rgb(0,0,255)")} );
     let buildingMesh = new THREE.Mesh( geometry, material );
   
     buildingMesh.position.copy(position);
@@ -761,8 +769,8 @@ function managePeople(){
     for(let i = 0; i < peopleArr.length; i++){
         enterAOI(peopleArr[i]);
     }
-   //spawnPeople();
-   //managePeopleInside()
+   spawnPeople();
+   managePeopleInside()
 }
 
 

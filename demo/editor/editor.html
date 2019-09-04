@@ -61,6 +61,7 @@
                                 Export to File</a>
                         </div>
                     </div> -->
+                    
     
                     <div class="btn-group dropright marginBT row" data-toggle="tooltip" data-placement="top" title="Load">
                             <button type="button" class="btn dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -82,7 +83,17 @@
                                
                             </div>
                     </div>  
-    
+                    <div class="btn-group dropright marginBT row" data-toggle="tooltip" data-placement="top" title="Export">
+                        <button type="button" class="btn dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <img id="imgBtLoad" class="imgBT" src="data/src/icons/export.png"/>
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item"  onclick="showPath('1')"  href="#" > 
+                                Show Path</a>
+                            <a class="dropdown-item" onclick="showPath('2')" href="#" > 
+                                Hide Path</a>
+                        </div>
+                    </div>
                     
                     <!-- <button type="button" class="btn viewerBT row" onclick="goToViewer()" data-toggle="tooltip" data-placement="right" title="Viewer"> 
                         <img id="imgBtPreview"  class="imgBT" src="data/src/icons/smartphone.png">
